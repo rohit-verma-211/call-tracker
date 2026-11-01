@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Call Tracker - HR</title>
+<style>
+  :root {
+    --bg: #f4f6f9; --card: #ffffff; --text: #1c2430; --muted: #6b7686; --line: #e3e8ef;
+    --brand: #1f5eff; --brand-dark: #1649c9; --ok: #12805c; --warn: #b45309; --bad: #c0352b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+  .hidden { display: none !important; }
+  button, input, select { font: inherit; }
+  input, select { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--text); }
+  input:focus, select:focus { outline: 2px solid #c7d6ff; border-color: var(--brand); }
+  button { cursor: pointer; border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 8px 12px; color: var(--text); }
+  button:hover { background: #f1f4f9; }
+  button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+  button.primary:hover { background: var(--brand-dark); }
+  button.danger { color: var(--bad); }
+
+  /* login */
+  #login { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .login-box { width: 100%; max-width: 360px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 28px; }
+  .login-box h1 { margin: 0 0 4px; font-size: 20px; }
+  .login-box p { margin: 0 0 20px; color: var(--muted); }
+  .login-box label { display: block; margin: 12px 0 4px; color: var(--muted); font-size: 12px; }
+  .login-box input { width: 100%; }
+  .login-box button { width: 100%; margin-top: 18px; padding: 10px; }
+  .error { color: var(--bad); margin-top: 12px; min-height: 18px; }
+
+  /* app shell */
+  header { background: var(--card); border-bottom: 1px solid var(--line); padding: 12px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 16px; margin: 0; margin-right: 8px; }
+  nav { display: flex; gap: 4px; }
+  nav button { border: none; background: transparent; color: var(--muted); padding: 8px 12px; }
+  nav button.active { background: #e8efff; color: var(--brand); font-weight: 600; }
+  .spacer { flex: 1; }
+  .who { color: var(--muted); }
+  main { max-width: 1250px; margin: 0 auto; padding: 20px; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+  .filters label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .tile .v { font-size: 24px; font-weight: 650; }
+  .tile .l { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.wrap { white-space: normal; min-width: 220px; max-width: 360px; }
+  tr:last-child td { border-bottom: none; }
+  .empty { text-align: center; color: var(--muted); padding: 28px; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .b-OUTGOING { background: #e6f0ff; color: #1649c9; }
+  .b-INCOMING { background: #e2f6ee; color: var(--ok); }
+  .b-MISSED { background: #fdeceb; color: var(--bad); }
+  .b-REJECTED { background: #fdf1e0; color: var(--warn); }
+  .b-OTHER { background: #eef1f5; color: var(--muted); }
+  .b-on { background: #e2f6ee; color: var(--ok); }
+  .b-off { background: #fdeceb; color: var(--bad); }
+
+  .pager { display: flex; align-items: center; gap: 10px; justify-content: flex-end; margin-top: 12px; color: var(--muted); }
+  .row-actions { display: flex; gap: 6px; }
+  a.link { color: var(--brand); cursor: pointer; text-decoration: none; }
+  a.link:hover { text-decoration: underline; }
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1c2430; color: #fff; padding: 10px 16px; border-radius: 10px; z-index: 20; }
+</style>
+</head>
+<body>
+
+<section id="login">
+  <form class="login-box" id="loginForm">
+    <h1>Call Tracker</h1>
+    <p>HR login</p>
+    <label for="lu">Username</label>
+    <input id="lu" autocomplete="username" required>
+    <label for="lp">Password</label>
+    <input id="lp" type="password" autocomplete="current-password" required>
+    <button class="primary" type="submit">Log in</button>
+    <div class="error" id="loginErr"></div>
+  </form>
+</section>
+
+<section id="app" class="hidden">
+  <header>
+    <h1>Call Tracker</h1>
+    <nav>
+      <button data-tab="dashboard" class="active">Dashboard</button>
+      <button data-tab="calls">Call logs</button>
+      <button data-tab="employees">Employees</button>
+    </nav>
+    <div class="spacer"></div>
+    <span class="who" id="who"></span>
+    <button id="logout">Log out</button>
+  </header>
+
+  <main>
+    <!-- DASHBOARD -->
+    <div id="tab-dashboard">
+      <div class="card">
+        <div class="filters">
+          <label>From <input type="date" id="dFrom"></label>
+          <label>To <input type="date" id="dTo"></label>
+          <button id="dToday">Today</button>
+          <button id="d7">Last 7 days</button>
+          <button id="d30">Last 30 days</button>
+          <button class="primary" id="dApply">Apply</button>
+        </div>
+      </div>
+      <div class="tiles" id="tiles"></div>
+      <div class="card table-wrap">
+        <table>
+          <thead><tr>
+            <th>Employee</th><th class="num">Total calls</th><th class="num">Outgoing</th><th class="num">Incoming</th>
+            <th class="num">Missed</th><th class="num">Connected</th><th class="num">Talk time</th><th>Last call</th><th></th>
+          </tr></thead>
+          <tbody id="statsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CALL LOGS -->
+    <div id="tab-calls" class="hidden">
+      <div class="card">
+        <div class="filters">
+          <label>Employee <select id="cEmp"><option value="">All</option></select></label>
+          <label>Type
+            <select id="cDir">
+              <option value="">All</option><option>OUTGOING</option><option>INCOMING</option><option>MISSED</option><option>REJECTED</option>
+            </select>
+          </label>
+          <label>From <input type="date" id="cFrom"></label>
+          <label>To <input type="date" id="cTo"></label>
+          <label>Search number / name <input id="cSearch" placeholder="e.g. 98765"></label>
+          <button class="primary" id="cApply">Search</button>
+          <button id="cReset">Reset</button>
+          <button id="cCsv">Download CSV</button>
+        </div>
+      </div>
+      <div class="card">
+        <div id="cSummary" style="margin-bottom:10px;color:var(--muted)"></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Date &amp; time</th><th>Employee</th><th>Phone</th><th>Contact</th><th>Type</th><th class="num">Duration</th><th>Summary</th>
+            </tr></thead>
+            <tbody id="callsBody"></tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <button id="prev">&larr; Prev</button>
+          <span id="pageInfo"></span>
+          <button id="next">Next &rarr;</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMPLOYEES -->
+    <div id="tab-employees" class="hidden">
+      <div class="card">
+        <form class="filters" id="empForm">
+          <label>Full name <input id="eName" required></label>
+          <label>Username <input id="eUser" required placeholder="e.g. rahul01"></label>
+          <label>Password <input id="ePass" type="text" required minlength="6" placeholder="min 6 characters"></label>
+          <button class="primary" type="submit">Add employee</button>
+        </form>
+        <div class="error" id="empErr"></div>
+      </div>
+      <div class="card table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Username</th><th>Status</th><th>Last sync</th><th>Actions</th></tr></thead>
+          <tbody id="empBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</section>
+
+<div id="toast" class="hidden"></div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  let token = localStorage.getItem('ct_token') || '';
+  let page = 1, pages = 1;
+  const TZ = 'Asia/Kolkata'; // display timezone; change if your team is elsewhere
+
+  async function api(path, opts = {}) {
+    const res = await fetch('/api' + path, {
+      method: opts.method || 'GET',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { Authorization: 'Bearer ' + token } : {}),
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    if (res.status === 401 && token) { logout(); throw new Error('Session expired'); }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+  }
+
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.remove('hidden');
+    clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add('hidden'), 2600);
+  }
+
+  const fmtDur = (s) => {
+    s = Number(s) || 0;
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    if (h) return h + 'h ' + m + 'm';
+    if (m) return m + 'm ' + sec + 's';
+    return sec + 's';
+  };
+  const fmtDate = (iso) => iso ? new Date(iso).toLocaleString('en-IN', { timeZone: TZ, day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '-';
+  const ymd = (d) => new Date(d).toLocaleDateString('en-CA', { timeZone: TZ }); // YYYY-MM-DD
+  const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return ymd(d); };
+
+  /* ---------- auth ---------- */
+  $('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault(); $('loginErr').textContent = '';
+    try {
+      const data = await api('/auth/login', { method: 'POST', body: { username: $('lu').value, password: $('lp').value } });
+      if (data.user.role !== 'hr') throw new Error('This page is for HR logins only');
+      token = data.token; localStorage.setItem('ct_token', token);
+      $('who').textContent = data.user.name; localStorage.setItem('ct_name', data.user.name);
+      showApp();
+    } catch (err) { $('loginErr').textContent = err.message; }
+  });
+
+  function logout() {
+    token = ''; localStorage.removeItem('ct_token');
+    $('app').classList.add('hidden'); $('login').classList.remove('hidden'); $('lp').value = '';
+  }
+  $('logout').addEventListener('click', logout);
+
+  function showApp() {
+    $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+    $('who').textContent = localStorage.getItem('ct_name') || '';
+    $('dFrom').value = $('dTo').value = ymd(new Date());
+    loadEmployeeOptions().then(() => { loadStats(); });
+    switchTab('dashboard');
+  }
+
+  /* ---------- tabs ---------- */
+  function switchTab(name) {
+    document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
+    ['dashboard', 'calls', 'employees'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== name));
+    if (name === 'dashboard') loadStats();
+    if (name === 'calls') loadCalls(1);
+    if (name === 'employees') loadEmployees();
+  }
+  document.querySelectorAll('nav button').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+
+  /* ---------- dashboard ---------- */
+  async function loadStats() {
+    try {
+      const q = new URLSearchParams({ from: $('dFrom').value, to: $('dTo').value });
+      const { employees, totals } = await api('/stats?' + q);
+      $('tiles').innerHTML = [
+        ['Total calls', totals.total], ['Outgoing', totals.outgoing], ['Incoming', totals.incoming],
+        ['Missed', totals.missed], ['Talk time', fmtDur(totals.talk_sec)],
+      ].map(([l, v]) => '<div class="tile"><div class="v">' + esc(v) + '</div><div class="l">' + esc(l) + '</div></div>').join('');
+
+      $('statsBody').innerHTML = employees.length ? employees.map((r) =>
+        '<tr><td>' + esc(r.name) + (r.active ? '' : ' <span class="badge b-off">disabled</span>') + '<div style="color:var(--muted);font-size:12px">@' + esc(r.username) + '</div></td>' +
+        '<td class="num">' + r.total + '</td><td class="num">' + r.outgoing + '</td><td class="num">' + r.incoming + '</td>' +
+        '<td class="num">' + r.missed + '</td><td class="num">' + r.connected + '</td><td class="num">' + fmtDur(r.talk_sec) + '</td>' +
+        '<td>' + fmtDate(r.last_call) + '</td>' +
+        '<td><a class="link" data-view="' + r.id + '">View calls</a></td></tr>'
+      ).join('') : '<tr><td colspan="9" class="empty">No employees yet. Add them in the Employees tab.</td></tr>';
+    } catch (err) { toast(err.message); }
+  }
+  $('dApply').addEventListener('click', loadStats);
+  $('dToday').addEventListener('click', () => { $('dFrom').value = $('dTo').value = ymd(new Date()); loadStats(); });
+  $('d7').addEventListener('click', () => { $('dFrom').value = daysAgo(6); $('dTo').value = ymd(new Date()); loadStats(); });
+  $('d30').addEventListener('click', () => { $('dFrom').value = daysAgo(29); $('dTo').value = ymd(new Date()); loadStats(); });
+  $('statsBody').addEventListener('click', (e) => {
+    const id = e.target.dataset && e.target.dataset.view;
+    if (!id) return;
+    $('cEmp').value = id; $('cFrom').value = $('dFrom').value; $('cTo').value = $('dTo').value; $('cDir').value = ''; $('cSearch').value = '';
+    switchTab('calls');
+  });
+
+  /* ---------- call logs ---------- */
+  async function loadEmployeeOptions() {
+    try {
+      const { employees } = await api('/employees');
+      const cur = $('cEmp').value;
+      $('cEmp').innerHTML = '<option value="">All</option>' + employees.map((e) => '<option value="' + e.id + '">' + esc(e.name) + '</option>').join('');
+      $('cEmp').value = cur;
+    } catch (err) { /* ignore */ }
+  }
+
+  function callQuery() {
+    const q = new URLSearchParams();
+    if ($('cEmp').value) q.set('employee_id', $('cEmp').value);
+    if ($('cDir').value) q.set('direction', $('cDir').value);
+    if ($('cFrom').value) q.set('from', $('cFrom').value);
+    if ($('cTo').value) q.set('to', $('cTo').value);
+    if ($('cSearch').value.trim()) q.set('search', $('cSearch').value.trim());
+    return q;
+  }
+
+  async function loadCalls(p) {
+    page = p || 1;
+    try {
+      const q = callQuery(); q.set('page', page); q.set('limit', 50);
+      const data = await api('/calls?' + q);
+      pages = data.pages;
+      $('cSummary').textContent = data.total + ' calls  |  total talk time ' + fmtDur(data.talk_sec);
+      $('callsBody').innerHTML = data.calls.length ? data.calls.map((c) =>
+        '<tr><td>' + fmtDate(c.called_at) + '</td><td>' + esc(c.employee_name) + '</td><td>' + esc(c.phone_number) + '</td>' +
+        '<td>' + esc(c.contact_name || '-') + '</td><td><span class="badge b-' + esc(c.direction) + '">' + esc(c.direction) + '</span></td>' +
+        '<td class="num">' + fmtDur(c.duration_sec) + '</td><td class="wrap">' + (c.summary ? esc(c.summary) : '<span style="color:var(--muted)">-</span>') + '</td></tr>'
+      ).join('') : '<tr><td colspan="7" class="empty">No calls match these filters.</td></tr>';
+      $('pageInfo').textContent = 'Page ' + page + ' of ' + pages;
+      $('prev').disabled = page <= 1; $('next').disabled = page >= pages;
+    } catch (err) { toast(err.message); }
+  }
+  $('cApply').addEventListener('click', () => loadCalls(1));
+  $('cReset').addEventListener('click', () => { ['cEmp', 'cDir', 'cFrom', 'cTo', 'cSearch'].forEach((i) => $(i).value = ''); loadCalls(1); });
+  $('prev').addEventListener('click', () => loadCalls(page - 1));
+  $('next').addEventListener('click', () => loadCalls(page + 1));
+  $('cSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadCalls(1); });
+
+  $('cCsv').addEventListener('click', async () => {
+    try {
+      const res = await fetch('/api/calls/export.csv?' + callQuery(), { headers: { Authorization: 'Bearer ' + token } });
+      if (!res.ok) throw new Error('Could not export');
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement('a'); a.href = url; a.download = 'call-logs-' + ymd(new Date()) + '.csv';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch (err) { toast(err.message); }
+  });
+
+  /* ---------- employees ---------- */
+  async function loadEmployees() {
+    try {
+      const { employees } = await api('/employees');
+      $('empBody').innerHTML = employees.length ? employees.map((e) =>
+        '<tr><td>' + esc(e.name) + '</td><td>@' + esc(e.username) + '</td>' +
+        '<td><span class="badge ' + (e.active ? 'b-on">active' : 'b-off">disabled') + '</span></td>' +
+        '<td>' + fmtDate(e.last_sync) + '</td>' +
+        '<td><div class="row-actions">' +
+        '<button data-act="toggle" data-id="' + e.id + '" data-active="' + e.active + '" class="' + (e.active ? 'danger' : '') + '">' + (e.active ? 'Disable' : 'Enable') + '</button>' +
+        '<button data-act="pass" data-id="' + e.id + '">Reset password</button>' +
+        '</div></td></tr>'
+      ).join('') : '<tr><td colspan="5" class="empty">No employees yet. Add one above.</td></tr>';
+      loadEmployeeOptions();
+    } catch (err) { toast(err.message); }
+  }
+
+  $('empForm').addEventListener('submit', async (e) => {
+    e.preventDefault(); $('empErr').textContent = '';
+    try {
+      await api('/employees', { method: 'POST', body: { name: $('eName').value, username: $('eUser').value, password: $('ePass').value } });
+      $('empForm').reset(); toast('Employee added. Share the username and password with them.'); loadEmployees();
+    } catch (err) { $('empErr').textContent = err.message; }
+  });
+
+  $('empBody').addEventListener('click', async (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    const id = b.dataset.id;
+    try {
+      if (b.dataset.act === 'toggle') {
+        const makeActive = b.dataset.active !== 'true';
+        if (!makeActive && !confirm('Disable this employee? They will be logged out and can no longer sync.')) return;
+        await api('/employees/' + id, { method: 'PATCH', body: { active: makeActive } });
+        toast(makeActive ? 'Employee enabled' : 'Employee disabled');
+      } else if (b.dataset.act === 'pass') {
+        const pw = prompt('Enter a new password (min 6 characters):');
+        if (!pw) return;
+        await api('/employees/' + id, { method: 'PATCH', body: { password: pw } });
+        toast('Password updated');
+      }
+      loadEmployees();
+    } catch (err) { toast(err.message); }
+  });
+
+  /* ---------- start ---------- */
+  if (token) {
+    api('/me').then(({ user }) => {
+      if (user.role !== 'hr') throw new Error('not hr');
+      localStorage.setItem('ct_name', user.name); showApp();
+    }).catch(logout);
+  }
+})();
+</script>
+</body>
+</html>
